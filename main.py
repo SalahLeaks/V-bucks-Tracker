@@ -131,6 +131,16 @@ def get_location_and_description(offers_json: dict, theater_id: str) -> tuple[st
 def extract_vbucks_missions(offers_json: dict) -> list:
     missions = []
     raw_mission_alerts = offers_json.get("missionAlerts")
+    theaters = offers_json.get("theaters", [])
+
+    def find_tile(theater_id, tile_index):
+        for theater in theaters:
+            if not isinstance(theater, dict) or theater.get("uniqueId") != theater_id:
+                continue
+            tiles = theater.get("tiles", [])
+            if tile_index < len(tiles) and isinstance(tiles[tile_index], dict):
+                return tiles[tile_index]
+        return None
 
     if isinstance(raw_mission_alerts, dict):
         alerts = raw_mission_alerts.get("availableMissionAlerts", [])
@@ -140,7 +150,12 @@ def extract_vbucks_missions(offers_json: dict) -> list:
             if not isinstance(alert, dict):
                 continue
             theater_id = alert.get("theaterId")
-            if not isinstance(theater_id, str):
+            tile_index = alert.get("tileIndex")
+            if not isinstance(theater_id, str) or not isinstance(tile_index, int):
+                continue
+
+            tile = find_tile(theater_id, tile_index)
+            if tile and tile.get("requirements", {}).get("eventFlag") == "EventFlag.BetaStorms.B":
                 continue
 
             rewards = alert.get("missionAlertRewards", {})
@@ -162,7 +177,8 @@ def extract_vbucks_missions(offers_json: dict) -> list:
                         "theaterId":    theater_id,
                         "quantity":     qty,
                         "display_name": location,
-                        "description":  desc
+                        "description":  desc,
+                        "tileIndex":    tile_index
                     })
                     break  
 
@@ -181,6 +197,14 @@ def extract_vbucks_missions(offers_json: dict) -> list:
             for alert in alerts:
                 if not isinstance(alert, dict):
                     continue
+                tile_index = alert.get("tileIndex")
+                if not isinstance(tile_index, int):
+                    continue
+
+                tile = find_tile(theater_id, tile_index)
+                if tile and tile.get("requirements", {}).get("eventFlag") == "EventFlag.BetaStorms.B":
+                    continue
+
                 rewards = alert.get("missionAlertRewards", {})
                 if not isinstance(rewards, dict):
                     continue
@@ -200,7 +224,8 @@ def extract_vbucks_missions(offers_json: dict) -> list:
                             "theaterId":    theater_id,
                             "quantity":     qty,
                             "display_name": location,
-                            "description":  desc
+                            "description":  desc,
+                            "tileIndex":    tile_index
                         })
                         break 
 
